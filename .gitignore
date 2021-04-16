@@ -30,3 +30,7 @@ override.tf.json
 
 # pycharm settings
 .idea
+
+# vagrant files and folders
+*console.log
+.vagrant
