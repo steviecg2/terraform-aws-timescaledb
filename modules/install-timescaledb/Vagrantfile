@@ -1,19 +1,61 @@
 Vagrant.configure("2") do |config|
 
+#   config.vm.define "bionic64-postgresql-13.2-source" do |source|
+#     source.vm.box = "ubuntu/bionic64"
+#     source.vm.hostname = "bionic-postgres-13-2-source"
+#     source.vm.provision "shell", path: "install-timescaledb.sh", args: "--postgresql_version 13.2"
+#   end
+
   config.vm.define "bionic64-postgresql-13.2-source" do |source|
     source.vm.box = "ubuntu/bionic64"
     source.vm.hostname = "bionic-postgres-13-2-source"
-    source.vm.provision "shell", path: "install-timescaledb.sh", args: "--postgresql_version 13.2"
+    source.vm.provision "shell", inline:<<-SHELL
+    version=13.2
+
+    # update the system
+    sudo apt-get update
+    sudo apt-get upgrade -y --with-new-pkgs
+
+    # requirements - https://www.postgresql.org/docs/9.6/install-requirements.html
+    sudo apt-get install -y gcc libreadline-dev libssl-dev libsystemd-dev make zlib1g-dev
+
+    # getting the source - https://www.postgresql.org/docs/9.6/install-getsource.html
+    wget "https://ftp.postgresql.org/pub/source/v$version/postgresql-$version.tar.gz"
+    tar xvf "postgresql-$version.tar.gz"
+    cd "postgresql-$version"
+
+    # installation procedure - https://www.postgresql.org/docs/9.6/install-procedure.html
+    ./configure --with-openssl --with-systemd
+    make world
+    sudo make install-world
+    sudo adduser --system --home /var/lib/postgresql postgres
+    sudo mkdir /usr/local/pgsql/data
+    sudo chown postgres /usr/local/pgsql/data
+    sudo -u postgres /usr/local/pgsql/bin/initdb -D /usr/local/pgsql/data
+
+    # cleanup
+    cd .. && rm -rf postgresql-$version*
+
+    SHELL
   end
 
   config.vm.define "bionic64-postgresql-13-package" do |package|
     package.vm.box = "ubuntu/bionic64"
     package.vm.hostname = "bionic-postgres-13-package"
     package.vm.provision "shell", inline:<<-SHELL
+
+    # update the system
+    sudo apt-get update
+    sudo apt-get upgrade -y --with-new-pkgs
+
+    # add the repository
     sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
     wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+
+    # install
     sudo apt-get update
     sudo apt-get -y install postgresql-13
+
     SHELL
   end
 
